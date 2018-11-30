@@ -1,5 +1,5 @@
-#include <server.hpp>
-#include <messages.hpp>
+#include "../include/server.hpp"
+#include "../../messages/include/messages.hpp"
 
 #include <iostream>
 #include <string.h>

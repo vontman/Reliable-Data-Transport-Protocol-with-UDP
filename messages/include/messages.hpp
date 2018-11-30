@@ -3,6 +3,8 @@
 
 const int PACKET_LEN = 500;
 
+#include <stdint.h>
+
 struct FileRequest {
     uint16_t len;
     char file_name[100];

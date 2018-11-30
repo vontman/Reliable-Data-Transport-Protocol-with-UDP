@@ -1,0 +1,17 @@
+[
+{
+  "directory": "/mnt/c/users/khaledali/desktop/Reliable-Data-Transport-Protocol-with-UDP",
+  "command": "/usr/bin/c++      -std=gnu++1z -o CMakeFiles/rdt_with_udp.dir/server/src/server.cpp.o -c /mnt/c/users/khaledali/desktop/Reliable-Data-Transport-Protocol-with-UDP/server/src/server.cpp",
+  "file": "/mnt/c/users/khaledali/desktop/Reliable-Data-Transport-Protocol-with-UDP/server/src/server.cpp"
+},
+{
+  "directory": "/mnt/c/users/khaledali/desktop/Reliable-Data-Transport-Protocol-with-UDP",
+  "command": "/usr/bin/c++      -std=gnu++1z -o CMakeFiles/rdt_with_udp.dir/server/src/sr_worker.cpp.o -c /mnt/c/users/khaledali/desktop/Reliable-Data-Transport-Protocol-with-UDP/server/src/sr_worker.cpp",
+  "file": "/mnt/c/users/khaledali/desktop/Reliable-Data-Transport-Protocol-with-UDP/server/src/sr_worker.cpp"
+},
+{
+  "directory": "/mnt/c/users/khaledali/desktop/Reliable-Data-Transport-Protocol-with-UDP",
+  "command": "/usr/bin/c++      -std=gnu++1z -o CMakeFiles/rdt_with_udp.dir/server/src/utils.cpp.o -c /mnt/c/users/khaledali/desktop/Reliable-Data-Transport-Protocol-with-UDP/server/src/utils.cpp",
+  "file": "/mnt/c/users/khaledali/desktop/Reliable-Data-Transport-Protocol-with-UDP/server/src/utils.cpp"
+}
+]
