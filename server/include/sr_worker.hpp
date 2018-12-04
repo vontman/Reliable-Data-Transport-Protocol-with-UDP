@@ -16,9 +16,9 @@
 class SR_Worker{
  public:
  	SR_Worker(FileRequest* request, int maxWindowSize, int socket, struct sockaddr_in dest_addr);
- 	// function to read acks
+ 	// function to read acks, increment cwnd, check in range l to r and minimize cwnd with max size
   private:
-  	int maxWindowSize;
+  	int cwnd, maxWindowSize;
   	std::vector<Packet*> packets;
   	std::vector<bool> ack;
   	std::vector<clock_t> timer;
@@ -28,7 +28,7 @@ class SR_Worker{
 
   	void sendFileLen(int len);
   	void sendFile();
-  	void checkTimeouts(int l, int r);
+  	bool checkTimeouts(int l, int r);
 };
 
 #endif /* ifndef SR_WORKER_HEADER */

@@ -8,6 +8,7 @@ SR_Worker::SR_Worker(FileRequest* request, int maxWindowSize, int socket, struct
 	this->timer = std::vector<clock_t>(maxWindowSize);
 	this->socket = socket;
 	this->dest_addr = dest_addr;
+	this->cwnd = 1;
 
 	// Send file length to client
 	int len = 0;
@@ -44,15 +45,21 @@ void SR_Worker::sendFile(){
 		else if(ack[l % maxWindowSize]) ++l;
 		else{
 			// check new acks
-			checkTimeouts(l, r);
+
+			if(checkTimeouts(l, r)){
+				cwnd = (cwnd + 1) / 2;
+				r = l + cwnd;
+			}
 		}
 	}
 }
 
-void SR_Worker::checkTimeouts(int l, int r){
+bool SR_Worker::checkTimeouts(int l, int r){
 	for(int i = l; i < r; ++i)
 		if(double(clock() - timer[i % maxWindowSize]) / CLOCKS_PER_SEC > TIMEOUT){
 			Utils::sendDataPacket(socket, packets[i], dest_addr);
 			timer[i % maxWindowSize] = clock();
+			return true;
 		}
+	return false;
 }
