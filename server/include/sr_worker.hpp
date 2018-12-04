@@ -15,7 +15,7 @@
 
 class SR_Worker{
  public:
- 	SR_Worker(FileRequest* request, int maxWindowSize);
+ 	SR_Worker(FileRequest* request, int maxWindowSize, int socket, struct sockaddr_in dest_addr);
  	// function to read acks
   private:
   	int maxWindowSize;
@@ -23,6 +23,8 @@ class SR_Worker{
   	std::vector<bool> ack;
   	std::vector<clock_t> timer;
   	const int TIMEOUT = 2; // in sec
+  	int socket;
+  	struct sockaddr_in dest_addr;
 
   	void sendFileLen(int len);
   	void sendFile();

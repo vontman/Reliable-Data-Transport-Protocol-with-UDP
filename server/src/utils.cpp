@@ -28,17 +28,38 @@ std::vector<Packet*> Utils::divideFileIntoPackets(std::string fileName){
 	return ret;
 }
 
-int Utils::sendDataPacket(int socket, struct Packet *dataPacket, struct sockaddr_in &server){
+int Utils::sendDataPacket(int socket, struct Packet *dataPacket, struct sockaddr_in dest_addr){
 	int counter = 0;
     char *sending_pointer = (char*)dataPacket;
     int len = sizeof(struct Packet);
     while (len > 0)
     {
-        int amount = sendto(socket,(const char*)sending_pointer, len ,0, (struct sockaddr*)&server, sizeof(struct sockaddr_in));
+        int amount = sendto(socket,(const char*)sending_pointer, len ,0, (struct sockaddr*) &dest_addr, sizeof(struct sockaddr_in));
         if (amount == SOCKET_ERROR)
         {
-            // handle error ...
-            puts("Send failed");
+            std::cerr <<"Sending failed in Utils::sendDataPacket function.";
+            return SOCKET_ERROR;
+        }
+        else
+        {
+            counter += amount;
+            len -= amount;
+            sending_pointer += amount;
+        }
+    }
+    return counter;
+}
+
+int Utils::sendFileRequestPacket(int socket, struct FileRequest *requestPacket, struct sockaddr_in dest_addr){
+	int counter = 0;
+    char *sending_pointer = (char*)requestPacket;
+    int len = sizeof(struct Packet);
+    while (len > 0)
+    {
+        int amount = sendto(socket,(const char*)sending_pointer, len ,0, (struct sockaddr*) &dest_addr, sizeof(struct sockaddr_in));
+        if (amount == SOCKET_ERROR)
+        {
+            std::cerr <<"Sending failed in Utils::sendFileRequestPacket function.";
             return SOCKET_ERROR;
         }
         else

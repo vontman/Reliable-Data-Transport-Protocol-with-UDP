@@ -20,7 +20,8 @@ class Utils {
 
     static Packet* createPacket(uint16_t len, uint16_t seqno, char *data);
     static std::vector<Packet*> divideFileIntoPackets(std::string fileName);
-    static int sendDataPacket(int socket, struct Packet *dataPacket, struct sockaddr_in &server);
+    static int sendDataPacket(int socket, struct Packet *dataPacket, struct sockaddr_in dest_addr);
+    static int sendFileRequestPacket(int socket, struct FileRequest *requestPacket, struct sockaddr_in dest_addr);
 };
 
 #endif /* ifndef UTILS_HEADER */
