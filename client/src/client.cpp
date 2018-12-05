@@ -1,6 +1,5 @@
 #include <arpa/inet.h>
 #include <iostream>
-#include <netinet/in.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -31,17 +30,22 @@ int main(int argc, char **argv) {
     }
 
 
-    for (i = 0; i < 10; i++) {
-        Packet p;
-        p.chksum = 1;
-        p.len = 2;
-        p.seqno = 3;
-        strcpy(p.data, filename);
-        printf("Sending packet %d\n", i);
-        sprintf(buf, "This is packet %d filename: %s\n", i, filename);
-        if (sendto(s, &p, sizeof p, 0, (sockaddr *)&si_other, slen) == -1)
-            perror("sendto()"), exit(1);
-    }
+    DataPacket p;
+    p.chksum = 1;
+    p.len = 2;
+    p.seqno = 3;
+    strcpy(p.data, filename);
+    printf("Sending packet %d\n", i);
+    sprintf(buf, "This is packet %d filename: %s\n", i, filename);
+    if (sendto(s, &p, sizeof p, 0, (sockaddr *)&si_other, slen) == -1)
+        perror("sendto()"), exit(1);
+    AckPacket a1, a2;
+    a1.ackno = 11111;
+    a2.ackno = 22222;
+    if (sendto(s, &a1, sizeof a1, 0, (sockaddr *)&si_other, slen) == -1)
+        perror("sendto()"), exit(1);
+    if (sendto(s, &a2, sizeof a2, 0, (sockaddr *)&si_other, slen) == -1)
+        perror("sendto()"), exit(1);
 
     close(s);
     return 0;
