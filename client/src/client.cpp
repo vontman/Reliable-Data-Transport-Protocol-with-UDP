@@ -58,6 +58,7 @@ int main(int argc, char **argv) {
      } else {
          receive_file_using_selective_repeat(output_file, socket, si_other, window_size);
      }
+     std::cout << "Finished receiving successfully" << std::endl;
      return 0;
 }
 
@@ -89,9 +90,9 @@ void create_socket(int& socket_descriptor, struct sockaddr_in& si_other, std::st
 void request_file(std::string file_name, int socket_descriptor, struct sockaddr_in si_other) {
     size_t s_len = sizeof(si_other);
 
-    DataPacket p;
+    FileRequest p;
     p.len = file_name.length();
-    strcpy(p.data, file_name.c_str());
+    strcpy(p.file_name, file_name.c_str());
     if (sendto(socket_descriptor, &p, sizeof p, 0, (sockaddr *)&si_other, s_len) == -1) {
         perror("Couldn't request file from server, exiting");
         exit(1);
@@ -113,6 +114,7 @@ void receive_file_using_selective_repeat(std::ofstream& output_file, int socket_
             perror("Failed to receive data");
             continue;
         }
+        std::cout << "Received from the server " << bytes_received << " Bytes" << std::endl;
         DataPacket packet;
         memcpy(&packet, buffer, sizeof(packet));
 
@@ -130,12 +132,12 @@ void receive_file_using_selective_repeat(std::ofstream& output_file, int socket_
 
             // Empty the map
             while(id_to_packet_map.size() != 0 && id_to_packet_map.begin()->first == window_base) {
-                window_base++;
                 DataPacket to_be_written_packet = id_to_packet_map[window_base];
                 output_file.write(to_be_written_packet.data, to_be_written_packet.len);
                 if(to_be_written_packet.len != sizeof(to_be_written_packet.data)) {
                     done_receiving = true;
                 }
+                window_base++;
                 id_to_packet_map.erase(window_base - 1);
             }
         }

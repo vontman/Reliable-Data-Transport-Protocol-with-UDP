@@ -28,6 +28,7 @@ class Server {
     std::unordered_map<std::string, std::pair<int, int>> pipes_mapper;
     // pipes[id].first for read end
     // pipes[id].second for write end
+    std::unordered_map<std::string, int> client_to_process_mapper;
 
     int d_socket;
 

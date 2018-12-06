@@ -1,5 +1,6 @@
 #include <messages.hpp>
 #include <server.hpp>
+#include <sr_worker.hpp>
 
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -9,6 +10,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <fstream>
+#include <signal.h>
 
 void error(std::string const &error_msg) {
     perror(error_msg.c_str());
@@ -114,22 +117,22 @@ void Server::handle_file_request(sockaddr_in const &client_address,
         std::string(inet_ntoa(client_address.sin_addr)) + ":" +
         std::to_string(ntohs(client_address.sin_port));
 
-    if (pipes_mapper.find(client_address_str) != pipes_mapper.end()) {
+    if (pipes_mapper.find(client_address_str) != pipes_mapper.end() && 0 != kill(client_to_process_mapper[client_address_str], 0)) {
         std::cout << "Client has already made a request.\n" << std::flush;
         return;
     }
 
-    std::cout << "Serving a new client with address: " << client_address_str
-              << "\n"
-              << std::flush;
+//    std::cout << "Serving a new client with address: " << client_address_str
+//              << "\n"
+//              << std::flush;
 
     std::pair<int, int> pipes;
 
     if (pipe(&pipes.first) == -1)
         error("Error trying to pipe");
 
-    std::cout << "Started new pipes" << std::endl;
-    std::cout << pipes.first << ", " << pipes.second << std::endl;
+//    std::cout << "Started new pipes" << std::endl;
+//    std::cout << pipes.first << ", " << pipes.second << std::endl;
     pipes_mapper[client_address_str] = pipes;
 
     pid_t pid = fork();
@@ -141,36 +144,26 @@ void Server::handle_file_request(sockaddr_in const &client_address,
     if (pid == 0) {
         // CHILD
         child_handle_client(client_address, pipes, file_request);
+        pipes_mapper.erase(client_address_str);
+        // To-Do remove child process data
         exit(0);
+    } else {
+        client_to_process_mapper[client_address_str] = pid;
     }
 }
 
 void Server::child_handle_client(sockaddr_in const &client_address,
                                  std::pair<int, int> pipes,
                                  FileRequest const &file_request) {
-    AckPacket ack_packet;
-    for (size_t i = 0; i < 100; ++i) {
-        close(pipes.second);
-        int n = read(pipes.first, &ack_packet, sizeof ack_packet);
-        if (n > 0)
-            std::cout << "CHILD INCOMING AckPacket p(" << ack_packet.chksum
-                      << ", " << ack_packet.len << ", " << ack_packet.ackno
-                      << ")\n"
-                      << std::flush;
-        else if (n == -1 && errno == EAGAIN) {
-            std::cout << "CHILD SLEEPING waiting on pipes:" << std::endl;
-            std::cout << pipes.first << ", " << pipes.second << std::endl;
-            sleep(1);
-        } else if (n == -1)
-            error("Error reading the pipe");
-    }
+    close(pipes.second);
+    SR_Worker worker(file_request, d_max_window_size, pipes.first, client_address);
 }
 
 void Server::handle_ack_packet(sockaddr_in const &client_address,
                                AckPacket const &ack_packet) {
-    std::cout << "AckPacket p(" << ack_packet.chksum << ", " << ack_packet.len
-              << ", " << ack_packet.ackno << ")\n"
-              << std::flush;
+//    std::cout << "AckPacket p(" << ack_packet.chksum << ", " << ack_packet.len
+//              << ", " << ack_packet.ackno << ")\n"
+//              << std::flush;
 
     std::string const client_address_str =
         std::string(inet_ntoa(client_address.sin_addr)) + ":" +
@@ -182,19 +175,20 @@ void Server::handle_ack_packet(sockaddr_in const &client_address,
     }
 
     std::pair<int, int> pipes = pipes_mapper[client_address_str];
-    std::cout << "Sent the ackpacke to the child waiting at pipes: " << std::endl;
-    std::cout << pipes.first << ", " << pipes.second << std::endl;
+//    std::cout << "Sent the ackpacke to the child waiting at pipes: " << std::endl;
+//    std::cout << pipes.first << ", " << pipes.second << std::endl;
     close(pipes.first);
     write(pipes.second, &ack_packet, sizeof ack_packet);
 }
 
+const char* SERVER_CONFIG_FILE = "server.in";
+
 int main(int argc, char **argv) {
-    if (argc != 3) {
-        perror("The server should be executed ./server PORT MAX_WINDOW_SIZE");
-        exit(1);
-    }
-    int port = atoi(argv[1]);
-    int max_window_size = atoi(argv[2]);
+    int port, max_window_size;
+    std::ifstream config_file(SERVER_CONFIG_FILE);
+    config_file >> port >> max_window_size;
+    config_file.close();
+
     Server s(port, max_window_size);
     s.start();
 
