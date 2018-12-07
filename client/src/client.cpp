@@ -18,7 +18,7 @@ const std::string STOP_AND_WAIT_METHOD = "stop-and-wait";
 void create_socket(int& socket_descriptor, struct sockaddr_in& si_other, std::string server_address, int server_port, int client_port);
 void request_file(std::string file_name, int socket_descriptor, struct sockaddr_in si_other);
 void receive_file_using_selective_repeat(std::ofstream& output_file, int socket_descriptor, struct sockaddr_in si_other, int window_size);
-void receive_file_using_go_back(std::ofstream& output_file, int socket_descriptor, struct sockaddr_in si_other, int window_size);
+void receive_file_using_go_back(std::ofstream& output_file, int socket_descriptor, struct sockaddr_in si_other);
 
 void read_client_configuration(std::string& server_address, int& server_port, int& client_port, std::string& file_name, int& window_size, std::string& method) {
     std::ifstream config_file(CONFIGURATION_FILE_NAME);
@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
      request_file(file_name, socket, si_other);
      std::ofstream output_file(file_name);
      if(method == GO_BACK_N_METHOD) {
-         receive_file_using_go_back(output_file, socket, si_other, window_size);
+         receive_file_using_go_back(output_file, socket, si_other);
      } else {
          receive_file_using_selective_repeat(output_file, socket, si_other, window_size);
      }
@@ -147,6 +147,40 @@ void receive_file_using_selective_repeat(std::ofstream& output_file, int socket_
     output_file.close();
 }
 
-void receive_file_using_go_back(std::ofstream& output_file, int socket_descriptor, struct sockaddr_in si_other, int window_size) {
+void receive_file_using_go_back(std::ofstream& output_file, int socket_descriptor, struct sockaddr_in si_other) {
+    size_t addr_len = sizeof(si_other);
 
+    bool done_receiving = false;
+    size_t buffer_size = sizeof(DataPacket);
+    char buffer[buffer_size];
+
+    int window_base = 0;
+    while(!done_receiving) {
+        ssize_t bytes_received = recv(socket_descriptor, buffer, buffer_size, 0);
+        if(bytes_received == -1) {
+            perror("Failed to receive data");
+            continue;
+        }
+        std::cout << "Received from the server " << bytes_received << " Bytes" << std::endl;
+        DataPacket packet;
+        memcpy(&packet, buffer, sizeof(packet));
+
+        int packetNumber = packet.seqno;
+        AckPacket response;
+        response.len = packet.len;
+        if(window_base == packetNumber) {
+            response.ackno = packet.seqno;
+            output_file.write(packet.data, packet.len);
+            window_base++;
+        } else {
+            response.ackno = window_base - 1;
+        }
+        sendto(socket_descriptor, &response, sizeof response, 0, (sockaddr *)&si_other, addr_len);
+        if(packet.len != sizeof(packet.data)) {
+            done_receiving = true;
+        }
+    }
+
+    close(socket_descriptor);
+    output_file.close();
 }

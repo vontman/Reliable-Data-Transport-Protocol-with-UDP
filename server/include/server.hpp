@@ -13,7 +13,7 @@ class Server {
     const int MAX_CLIENTS = 30;
     const int PACKET_LEN = 500;
 
-    explicit Server(int port, int max_window_size);
+    explicit Server(int port, int max_window_size, std::string method);
     void start();
     void stop();
     ~Server();
@@ -31,6 +31,7 @@ class Server {
     std::unordered_map<std::string, int> client_to_process_mapper;
 
     int d_socket;
+    std::string method_;
 
     void handle_file_request(sockaddr_in const &client_address,
                              FileRequest const &packet);

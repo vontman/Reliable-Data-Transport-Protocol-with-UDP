@@ -13,10 +13,12 @@
 #include <unistd.h>
 #include <sstream>
 
-class SR_Worker{
+class ServerWorker{
  public:
- 	SR_Worker(FileRequest request, int maxWindowSize, int socket, struct sockaddr_in dest_addr);
+ 	ServerWorker(FileRequest request, int maxWindowSize, int socket, struct sockaddr_in dest_addr);
  	// function to read acks, increment cwnd, check in range l to r and minimize cwnd with max size
+    void sendSRFile();
+    void sendGoBackNFile();
   private:
   	int cwnd, maxWindowSize;
   	int read_pipe_;
@@ -28,7 +30,6 @@ class SR_Worker{
   	struct sockaddr_in dest_addr;
 
   	void sendFileLen(int len);
-  	void sendFile();
   	bool checkTimeouts(int l, int r);
   	int create_socket();
 };

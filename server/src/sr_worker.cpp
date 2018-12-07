@@ -3,7 +3,7 @@
 
 #include <unistd.h>
 
-SR_Worker::SR_Worker(FileRequest request, int maxWindowSize, int pipe, struct sockaddr_in dest_addr) {
+ServerWorker::ServerWorker(FileRequest request, int maxWindowSize, int pipe, struct sockaddr_in dest_addr) {
 	this->maxWindowSize = maxWindowSize;
 	this->packets = Utils::divideFileIntoPackets(std::string(request.file_name));
 	this->ack = std::vector<bool>(maxWindowSize);
@@ -18,13 +18,10 @@ SR_Worker::SR_Worker(FileRequest request, int maxWindowSize, int pipe, struct so
 	for(DataPacket* packet : packets)
 		len += packet->len;
 	//sendFileLen(len);
-
-	// Send file to client
-	sendFile();
 }
 
 
-int SR_Worker::create_socket() {
+int ServerWorker::create_socket() {
 	std::string const client_address_str =
 			std::string(inet_ntoa(dest_addr.sin_addr)) + ":" +
 			std::to_string(ntohs(dest_addr.sin_port));
@@ -46,7 +43,7 @@ int SR_Worker::create_socket() {
 	return socket_descriptor;
 }
 
-void SR_Worker::sendFileLen(int len){
+void ServerWorker::sendFileLen(int len){
 	FileRequest *reply = (FileRequest *) malloc(sizeof(struct FileRequest));
 	if(reply == NULL){
 		std::cerr <<"Failed to allocate memory for reply packet.";
@@ -58,12 +55,12 @@ void SR_Worker::sendFileLen(int len){
 		std::cerr <<"Failed to send file length to client, retrying.";
 }
 
-void SR_Worker::sendFile(){
+void ServerWorker::sendSRFile(){
 	int n = packets.size();
 	int l = 0, r = 0;
 	std::cout << "Attempting to send the file divided into " << n << " packets" << std::endl;
 	while(l < n){
-		if(r - l < maxWindowSize and r < n){
+		if(r - l < cwnd and r < n){
 		    Utils::sendDataPacket(socket_descriptor, packets[r], dest_addr);
 			ack[r % maxWindowSize] = false;
 			timer[r % maxWindowSize] = clock();
@@ -76,6 +73,7 @@ void SR_Worker::sendFile(){
                 int acked_packet_number = ack_packet.ackno;
                 if(acked_packet_number < r && acked_packet_number >= l) {
                     ack[acked_packet_number % maxWindowSize] = true;
+                    cwnd = std::min(cwnd + 1, maxWindowSize);
                 }
             }
 			if(checkTimeouts(l, r)){
@@ -86,7 +84,38 @@ void SR_Worker::sendFile(){
 	}
 }
 
-bool SR_Worker::checkTimeouts(int l, int r){
+void ServerWorker::sendGoBackNFile() {
+    int n = packets.size();
+    int l = 0, r = 0;
+    std::cout << "Attempting to send the file divided into " << n << " packets" << std::endl;
+        while(l < n){
+        if(r - l < maxWindowSize and r < n){
+            Utils::sendDataPacket(socket_descriptor, packets[r], dest_addr);
+            ack[r % maxWindowSize] = false;
+            timer[r % maxWindowSize] = clock();
+            ++r;
+        }
+        else if(ack[l % maxWindowSize]) ++l;
+        else{
+            AckPacket ack_packet;
+            while((read(read_pipe_, &ack_packet, sizeof(struct AckPacket))) != -1) {
+                int acked_packet_number = ack_packet.ackno;
+                if(acked_packet_number < r && acked_packet_number >= l) {
+                    ack[acked_packet_number % maxWindowSize] = true;
+                    cwnd = std::min(cwnd + 1, maxWindowSize);
+                }
+            }
+        }
+        if(double(clock() - timer[l % maxWindowSize]) / CLOCKS_PER_SEC > TIMEOUT) {
+            for(int retry_index = l; retry_index < r; retry_index++) {
+                Utils::sendDataPacket(socket_descriptor, packets[retry_index], dest_addr);
+                timer[retry_index % maxWindowSize] = clock();
+            }
+        }
+    }
+}
+
+bool ServerWorker::checkTimeouts(int l, int r){
 	for(int i = l; i < r; ++i)
 		if(double(clock() - timer[i % maxWindowSize]) / CLOCKS_PER_SEC > TIMEOUT){
 			Utils::sendDataPacket(socket_descriptor, packets[i], dest_addr);
