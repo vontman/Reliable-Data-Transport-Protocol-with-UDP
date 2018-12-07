@@ -15,7 +15,7 @@
 
 class ServerWorker{
  public:
- 	ServerWorker(FileRequest request, int maxWindowSize, int socket, struct sockaddr_in dest_addr);
+ 	ServerWorker(FileRequest request, int maxWindowSize, int socket, struct sockaddr_in dest_addr, double loss_probability);
  	// function to read acks, increment cwnd, check in range l to r and minimize cwnd with max size
     void sendSRFile();
     void sendGoBackNFile();
@@ -28,8 +28,8 @@ class ServerWorker{
   	const int TIMEOUT = 2; // in sec
   	int socket_descriptor;
   	struct sockaddr_in dest_addr;
+	double loss_probability_;
 
-  	void sendFileLen(int len);
   	bool checkTimeouts(int l, int r);
   	int create_socket();
 };

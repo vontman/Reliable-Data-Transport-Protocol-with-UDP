@@ -99,6 +99,15 @@ void request_file(std::string file_name, int socket_descriptor, struct sockaddr_
     }
 }
 
+int last_window_base = 0;
+
+void report(int window_base) {
+    if(window_base % 20 == 0 && window_base != last_window_base) {
+        last_window_base = window_base;
+        std::cout << "Reached the packet with number: " << window_base << std::endl;
+    }
+}
+
 void receive_file_using_selective_repeat(std::ofstream& output_file, int socket_descriptor, struct sockaddr_in si_other, int window_size) {
     size_t addr_len = sizeof(si_other);
     std::map<int, DataPacket> id_to_packet_map;
@@ -109,12 +118,12 @@ void receive_file_using_selective_repeat(std::ofstream& output_file, int socket_
 
     int window_base = 0;
     while(!done_receiving) {
+        report(window_base);
         ssize_t bytes_received = recv(socket_descriptor, buffer, buffer_size, 0);
         if(bytes_received == -1) {
             perror("Failed to receive data");
             continue;
         }
-        std::cout << "Received from the server " << bytes_received << " Bytes" << std::endl;
         DataPacket packet;
         memcpy(&packet, buffer, sizeof(packet));
 
@@ -156,6 +165,7 @@ void receive_file_using_go_back(std::ofstream& output_file, int socket_descripto
 
     int window_base = 0;
     while(!done_receiving) {
+        report(window_base);
         ssize_t bytes_received = recv(socket_descriptor, buffer, buffer_size, 0);
         if(bytes_received == -1) {
             perror("Failed to receive data");

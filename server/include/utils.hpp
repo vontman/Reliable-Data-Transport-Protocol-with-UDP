@@ -20,8 +20,8 @@ class Utils {
 
     static DataPacket* createPacket(uint16_t len, uint16_t seqno, std::string& data, int index);
     static std::vector<DataPacket*> divideFileIntoPackets(std::string fileName);
-    static int sendDataPacket(int socket, struct DataPacket *dataPacket, struct sockaddr_in dest_addr);
-    static int sendFileRequestPacket(int socket, struct FileRequest *requestPacket, struct sockaddr_in dest_addr);
+    static int sendDataPacket(int socket, struct DataPacket *dataPacket, struct sockaddr_in dest_addr, double loss_probability);
+    static ssize_t send_with_packet_loss(double prob_of_drop, int socket, sockaddr_in &client_address, char const *data, size_t len);
 };
 
 #endif /* ifndef UTILS_HEADER */

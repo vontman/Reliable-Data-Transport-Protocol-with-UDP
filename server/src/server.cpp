@@ -26,21 +26,8 @@ void error(std::string const &error_msg) {
     exit(1);
 }
 
-int send_with_packet_loss(double prob_of_drop, int socket,
-                          sockaddr_in &client_address, char const *data,
-                          size_t len) {
-    double r = ((double)rand() / (RAND_MAX));
-    if (r < prob_of_drop) {
-        std::cout << "Packet Lost";
-        return len;
-    }
-
-    return sendto(socket, data, len, 0, (sockaddr *)&client_address,
-                  sizeof client_address);
-}
-
-Server::Server(int port, int max_window_size, std::string method)
-    : d_port(port), d_max_window_size(max_window_size), method_(method) {
+Server::Server(int port, int max_window_size, std::string method, double loss_probability)
+    : d_port(port), d_max_window_size(max_window_size), method_(method), loss_probability_(loss_probability) {
 
     std::cout << "Server(" << port << ", " << max_window_size << ")\n";
 
@@ -166,7 +153,7 @@ void Server::child_handle_client(sockaddr_in const &client_address,
                                  std::pair<int, int> pipes,
                                  FileRequest const &file_request) {
     close(pipes.second);
-    ServerWorker worker(file_request, d_max_window_size, pipes.first, client_address);
+    ServerWorker worker(file_request, d_max_window_size, pipes.first, client_address, loss_probability_);
     if(method_ == GO_BACK_N_METHOD) {
         worker.sendGoBackNFile();
     } else {
@@ -199,15 +186,16 @@ void Server::handle_ack_packet(sockaddr_in const &client_address,
 int main(int argc, char **argv) {
     int port, max_window_size;
     std::string method;
+    double loss_probability;
     std::ifstream config_file(SERVER_CONFIG_FILE);
-    config_file >> port >> max_window_size >> method;
+    config_file >> port >> max_window_size >> loss_probability >> method;
     if(method == STOP_AND_WAIT) {
         max_window_size = 1;
         std::cout << "Max window size was overriden to 1 because of using stop and wait" << std::endl;
     }
     config_file.close();
 
-    Server s(port, max_window_size, method);
+    Server s(port, max_window_size, method, loss_probability);
     s.start();
 
     return 0;

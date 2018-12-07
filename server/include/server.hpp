@@ -13,7 +13,7 @@ class Server {
     const int MAX_CLIENTS = 30;
     const int PACKET_LEN = 500;
 
-    explicit Server(int port, int max_window_size, std::string method);
+    explicit Server(int port, int max_window_size, std::string method, double loss_probability);
     void start();
     void stop();
     ~Server();
@@ -32,6 +32,7 @@ class Server {
 
     int d_socket;
     std::string method_;
+    double loss_probability_;
 
     void handle_file_request(sockaddr_in const &client_address,
                              FileRequest const &packet);

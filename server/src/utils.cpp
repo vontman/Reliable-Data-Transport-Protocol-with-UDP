@@ -30,17 +30,16 @@ std::vector<DataPacket*> Utils::divideFileIntoPackets(std::string fileName){
 	    emptyPacket->seqno = lastPacket->seqno + 1;
 	    ret.push_back(emptyPacket);
 	}
-	std::cout << "Quoi" << std::endl;
 	return ret;
 }
 
-int Utils::sendDataPacket(int socket, struct DataPacket *dataPacket, struct sockaddr_in dest_addr){
+int Utils::sendDataPacket(int socket, struct DataPacket *dataPacket, struct sockaddr_in dest_addr, double loss_probability){
 	int counter = 0;
     char *sending_pointer = (char*)dataPacket;
     int len = sizeof(struct DataPacket);
     while (len > 0)
     {
-        int amount = sendto(socket,(const char*)sending_pointer, len ,0, (struct sockaddr*) &dest_addr, sizeof(struct sockaddr_in));
+        int amount = send_with_packet_loss(loss_probability, socket, dest_addr, sending_pointer, len);
         if (amount == SOCKET_ERROR)
         {
             std::cerr <<"Sending failed in Utils::sendDataPacket function.";
@@ -56,24 +55,11 @@ int Utils::sendDataPacket(int socket, struct DataPacket *dataPacket, struct sock
     return counter;
 }
 
-int Utils::sendFileRequestPacket(int socket, struct FileRequest *requestPacket, struct sockaddr_in dest_addr){
-	int counter = 0;
-    char *sending_pointer = (char*)requestPacket;
-    int len = sizeof(struct DataPacket);
-    while (len > 0)
-    {
-        int amount = sendto(socket,(const char*)sending_pointer, len ,0, (struct sockaddr*) &dest_addr, sizeof(struct sockaddr_in));
-        if (amount == SOCKET_ERROR)
-        {
-            std::cerr <<"Sending failed in Utils::sendFileRequestPacket function.";
-            return SOCKET_ERROR;
-        }
-        else
-        {
-            counter += amount;
-            len -= amount;
-            sending_pointer += amount;
-        }
+ssize_t Utils::send_with_packet_loss(double prob_of_drop, int socket, sockaddr_in &client_address, char const *data, size_t len) {
+    double r = ((double)rand() / (RAND_MAX));
+    if (r < prob_of_drop) {
+        return len;
     }
-    return counter;
+
+    return sendto(socket, data, len, 0, (sockaddr *)&client_address, sizeof client_address);
 }

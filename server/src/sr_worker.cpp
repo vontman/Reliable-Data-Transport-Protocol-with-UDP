@@ -3,7 +3,8 @@
 
 #include <unistd.h>
 
-ServerWorker::ServerWorker(FileRequest request, int maxWindowSize, int pipe, struct sockaddr_in dest_addr) {
+ServerWorker::ServerWorker(FileRequest request, int maxWindowSize, int pipe, struct sockaddr_in dest_addr, double loss_probability)
+        : loss_probability_(loss_probability) {
 	this->maxWindowSize = maxWindowSize;
 	this->packets = Utils::divideFileIntoPackets(std::string(request.file_name));
 	this->ack = std::vector<bool>(maxWindowSize);
@@ -43,25 +44,13 @@ int ServerWorker::create_socket() {
 	return socket_descriptor;
 }
 
-void ServerWorker::sendFileLen(int len){
-	FileRequest *reply = (FileRequest *) malloc(sizeof(struct FileRequest));
-	if(reply == NULL){
-		std::cerr <<"Failed to allocate memory for reply packet.";
-		return;
-	}
-	reply->len = len;
-
-	while(Utils::sendFileRequestPacket(socket_descriptor, reply, dest_addr) == Utils::SOCKET_ERROR)
-		std::cerr <<"Failed to send file length to client, retrying.";
-}
-
 void ServerWorker::sendSRFile(){
 	int n = packets.size();
 	int l = 0, r = 0;
 	std::cout << "Attempting to send the file divided into " << n << " packets" << std::endl;
 	while(l < n){
 		if(r - l < cwnd and r < n){
-		    Utils::sendDataPacket(socket_descriptor, packets[r], dest_addr);
+		    Utils::sendDataPacket(socket_descriptor, packets[r], dest_addr, loss_probability_);
 			ack[r % maxWindowSize] = false;
 			timer[r % maxWindowSize] = clock();
 			++r;
@@ -90,7 +79,7 @@ void ServerWorker::sendGoBackNFile() {
     std::cout << "Attempting to send the file divided into " << n << " packets" << std::endl;
         while(l < n){
         if(r - l < maxWindowSize and r < n){
-            Utils::sendDataPacket(socket_descriptor, packets[r], dest_addr);
+            Utils::sendDataPacket(socket_descriptor, packets[r], dest_addr, loss_probability_);
             ack[r % maxWindowSize] = false;
             timer[r % maxWindowSize] = clock();
             ++r;
@@ -108,7 +97,7 @@ void ServerWorker::sendGoBackNFile() {
         }
         if(double(clock() - timer[l % maxWindowSize]) / CLOCKS_PER_SEC > TIMEOUT) {
             for(int retry_index = l; retry_index < r; retry_index++) {
-                Utils::sendDataPacket(socket_descriptor, packets[retry_index], dest_addr);
+                Utils::sendDataPacket(socket_descriptor, packets[retry_index], dest_addr, loss_probability_);
                 timer[retry_index % maxWindowSize] = clock();
             }
         }
@@ -118,7 +107,7 @@ void ServerWorker::sendGoBackNFile() {
 bool ServerWorker::checkTimeouts(int l, int r){
 	for(int i = l; i < r; ++i)
 		if(double(clock() - timer[i % maxWindowSize]) / CLOCKS_PER_SEC > TIMEOUT){
-			Utils::sendDataPacket(socket_descriptor, packets[i], dest_addr);
+			Utils::sendDataPacket(socket_descriptor, packets[i], dest_addr, loss_probability_);
 			timer[i % maxWindowSize] = clock();
 			return true;
 		}
