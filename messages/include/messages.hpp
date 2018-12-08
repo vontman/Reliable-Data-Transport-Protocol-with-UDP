@@ -13,14 +13,14 @@ struct FileRequest {
 struct DataPacket {
     uint16_t chksum;
     uint16_t len;
-    uint32_t seqno;
+    int32_t seqno;
     char data[PACKET_LEN];
 };
 
 struct AckPacket {
     uint16_t chksum;
     uint16_t len;
-    uint32_t ackno;
+    int32_t ackno;
 };
 
 #endif /* ifndef MESSAGES_HEADER */

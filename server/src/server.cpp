@@ -1,6 +1,6 @@
 #include <messages.hpp>
 #include <server.hpp>
-#include <sr_worker.hpp>
+#include <server_worker.hpp>
 
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -87,8 +87,8 @@ void Server::start() {
             error("Error trying to receive data from " + client_address_str +
                   "\nData: " + std::string(buffer));
 
-        std::cout << "Received packet from " << client_address_str << "\n";
-        std::cout << "DataLen: " << bytes_received << "\n";
+        // std::cout << "Received packet from " << client_address_str << "\n";
+        // std::cout << "DataLen: " << bytes_received << "\n";
 
         if (bytes_received == sizeof(FileRequest)) {
             FileRequest file_request;
@@ -157,7 +157,7 @@ void Server::child_handle_client(sockaddr_in const &client_address,
     if(method_ == GO_BACK_N_METHOD) {
         worker.sendGoBackNFile();
     } else {
-        worker.sendGoBackNFile();
+        worker.sendSRFile();
     }
 }
 

@@ -8,6 +8,7 @@
 #include <string>
 #include <fstream>
 #include <map>
+#include <sys/time.h>                // for gettimeofday()
 
 const char* CONFIGURATION_FILE_NAME = "client.in";
 
@@ -15,7 +16,9 @@ const std::string GO_BACK_N_METHOD = "go-back-n";
 const std::string SELECTIVE_REPEAT_METHOD = "selective-repeat";
 const std::string STOP_AND_WAIT_METHOD = "stop-and-wait";
 
-void create_socket(int& socket_descriptor, struct sockaddr_in& si_other, std::string server_address, int server_port, int client_port);
+int last_window_base = 0;
+
+void create_socket(int& socket_descriptor, struct sockaddr_in& si_other, std::string& server_address, int server_port, int client_port);
 void request_file(std::string file_name, int socket_descriptor, struct sockaddr_in si_other);
 void receive_file_using_selective_repeat(std::ofstream& output_file, int socket_descriptor, struct sockaddr_in si_other, int window_size);
 void receive_file_using_go_back(std::ofstream& output_file, int socket_descriptor, struct sockaddr_in si_other);
@@ -47,22 +50,28 @@ int main(int argc, char **argv) {
      std::string method;
      read_client_configuration(server_address, server_port, client_port, file_name, window_size, method);
 
-     int socket;
-     struct sockaddr_in si_other;
+    struct timeval t1, t2;
+    int socket;
+    struct sockaddr_in si_other;
      create_socket(socket, si_other, server_address, server_port, client_port);
-
      request_file(file_name, socket, si_other);
      std::ofstream output_file(file_name);
+     gettimeofday(&t1, NULL);
      if(method == GO_BACK_N_METHOD) {
          receive_file_using_go_back(output_file, socket, si_other);
      } else {
          receive_file_using_selective_repeat(output_file, socket, si_other, window_size);
      }
      std::cout << "Finished receiving successfully" << std::endl;
+     gettimeofday(&t2, NULL);
+     double elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0;      // sec to ms
+     elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0;   // us to ms
+     std::cout << "Total time required to send is " << elapsedTime / 1000.0 << " seconds" << std::endl;
+
      return 0;
 }
 
-void create_socket(int& socket_descriptor, struct sockaddr_in& si_other, std::string server_address, int server_port, int client_port) {
+void create_socket(int& socket_descriptor, struct sockaddr_in& si_other, std::string& server_address, int server_port, int client_port) {
     if ((socket_descriptor = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
         perror("Couldn't create socket");
         exit(1);
@@ -99,10 +108,10 @@ void request_file(std::string file_name, int socket_descriptor, struct sockaddr_
     }
 }
 
-int last_window_base = 0;
 
-void report(int window_base) {
-    if(window_base % 20 == 0 && window_base != last_window_base) {
+
+void report(int window_base, int enforce) {
+    if(enforce || (window_base - last_window_base >=  300 && window_base != last_window_base)) {
         last_window_base = window_base;
         std::cout << "Reached the packet with number: " << window_base << std::endl;
     }
@@ -118,7 +127,7 @@ void receive_file_using_selective_repeat(std::ofstream& output_file, int socket_
 
     int window_base = 0;
     while(!done_receiving) {
-        report(window_base);
+        report(window_base, false);
         ssize_t bytes_received = recv(socket_descriptor, buffer, buffer_size, 0);
         if(bytes_received == -1) {
             perror("Failed to receive data");
@@ -151,13 +160,13 @@ void receive_file_using_selective_repeat(std::ofstream& output_file, int socket_
             }
         }
     }
-
+    report(window_base, true);
     close(socket_descriptor);
     output_file.close();
 }
 
 void receive_file_using_go_back(std::ofstream& output_file, int socket_descriptor, struct sockaddr_in si_other) {
-    size_t addr_len = sizeof(si_other);
+    socklen_t addr_len = sizeof(si_other);
 
     bool done_receiving = false;
     size_t buffer_size = sizeof(DataPacket);
@@ -165,13 +174,12 @@ void receive_file_using_go_back(std::ofstream& output_file, int socket_descripto
 
     int window_base = 0;
     while(!done_receiving) {
-        report(window_base);
+        report(window_base, false);
         ssize_t bytes_received = recv(socket_descriptor, buffer, buffer_size, 0);
         if(bytes_received == -1) {
             perror("Failed to receive data");
             continue;
         }
-        std::cout << "Received from the server " << bytes_received << " Bytes" << std::endl;
         DataPacket packet;
         memcpy(&packet, buffer, sizeof(packet));
 
@@ -190,7 +198,7 @@ void receive_file_using_go_back(std::ofstream& output_file, int socket_descripto
             done_receiving = true;
         }
     }
-
+    report(window_base, true);
     close(socket_descriptor);
     output_file.close();
 }
