@@ -1,1 +1,0 @@
-/usr/bin/c++     CMakeFiles/rdt_with_udp.dir/server/src/server.cpp.o CMakeFiles/rdt_with_udp.dir/server/src/sr_worker.cpp.o CMakeFiles/rdt_with_udp.dir/server/src/utils.cpp.o  -o rdt_with_udp 

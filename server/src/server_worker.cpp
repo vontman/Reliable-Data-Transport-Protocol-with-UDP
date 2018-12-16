@@ -3,6 +3,7 @@
 
 #include <unistd.h>
 #include <algorithm>
+#include <fstream>
 
 double ServerWorker::TIMEOUT = 0.3;
 
@@ -55,8 +56,11 @@ void ServerWorker::sendSRFile() {
     std::vector<int> congestion_packets = read_congestion_packets();
     int congestion_packet_ptr = 0;
     clock_t last_response_time = clock();
+    std::ofstream window_size_recorder;
+    window_size_recorder.open ("selective_repeat_windows_" + file_name_ + ".txt");
     while (packet_window_start < packets_count) {
         if (packet_window_end - packet_window_start < cwnd and packet_window_end < packets_count) {
+            window_size_recorder << packet_window_end - packet_window_start+1<<"\n";
             Utils::sendDataPacket(socket_descriptor, packets[packet_window_end], dest_addr, loss_probability_);
             ack[packet_window_end % maxWindowSize] = false;
             timer[packet_window_end % maxWindowSize] = clock();
@@ -66,6 +70,7 @@ void ServerWorker::sendSRFile() {
             ++packet_window_start;
             if(congestion_packet_ptr < congestion_packets.size() && congestion_packets[congestion_packet_ptr] == packet_window_start) {
                 cwnd = (cwnd + 1) / 2;
+                packet_window_end = packet_window_start + cwnd;
                 std::cout << "cwnd cut to half because of Congestion at packet " << congestion_packets[congestion_packet_ptr]
                           << " and new value = " << cwnd << std::endl;
                 congestion_packet_ptr++;

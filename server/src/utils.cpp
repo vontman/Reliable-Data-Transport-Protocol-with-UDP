@@ -10,6 +10,7 @@ struct DataPacket *Utils::createPacket(int len, int seqno, std::string &data, in
     dataPacket->len = len;
     dataPacket->seqno = seqno;
     memcpy(dataPacket->data, data.substr(index, len).c_str(), len);
+    dataPacket->chksum = dataPacket->calc_chksum();
     return dataPacket;
 }
 
@@ -28,6 +29,7 @@ std::vector<DataPacket *> Utils::divideFileIntoPackets(std::string fileName) {
         DataPacket *emptyPacket = (struct DataPacket *) malloc(sizeof(struct DataPacket));
         emptyPacket->len = 0;
         emptyPacket->seqno = lastPacket->seqno + 1;
+        emptyPacket->chksum = emptyPacket->calc_chksum();
         ret.push_back(emptyPacket);
     }
     fin.close();
